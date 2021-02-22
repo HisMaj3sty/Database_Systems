@@ -1,0 +1,75 @@
+  As can bee seen indexes made job much faster
+
+
+After indexing:
+Bitmap Heap Scan on customer  (cost=76.04..3008.83 rows=2070 width=215) (actual time=0.419..1.938 rows=2054 loops=1)
+  Recheck Cond: (age = 50)
+  Heap Blocks: exact=1516
+  ->  Bitmap Index Scan on "hash index"  (cost=0.00..75.53 rows=2070 width=0) (actual time=0.212..0.212 rows=2054 loops=1)
+        Index Cond: (age = 50)
+Planning Time: 0.345 ms
+Execution Time: 2.075 ms
+Bitmap Heap Scan on customer  (cost=233.15..3445.24 rows=9065 width=215) (actual time=1.974..6.104 rows=9133 loops=1)
+  Filter: (name ~~ 'A%'::text)
+  Heap Blocks: exact=2966
+  ->  Bitmap Index Scan on "btree index"  (cost=0.00..230.89 rows=9847 width=0) (actual time=1.536..1.536 rows=9133 loops=1)
+        Index Cond: ((name ~>=~ 'A'::text) AND (name ~<~ 'B'::text))
+Planning Time: 0.194 ms
+Execution Time: 6.592 ms
+
+
+
+Before indexing:
+Seq Scan on customer  (cost=0.00..4339.00 rows=2070 width=215) (actual time=0.009..12.583 rows=2054 loops=1)
+  Filter: (age = 50)
+  Rows Removed by Filter: 97946
+Planning Time: 0.062 ms
+Execution Time: 12.700 ms
+Seq Scan on customer  (cost=0.00..4339.00 rows=9065 width=215) (actual time=0.007..14.339 rows=9133 loops=1)
+  Filter: (name ~~ 'A%'::text)
+  Rows Removed by Filter: 90867
+Planning Time: 0.062 ms
+Execution Time: 14.834 ms
+ 
+
+ 
+ 
+ As can be seen GIN and GIST make perfomance much, much better
+ 
+ 
+No GIN or GIST:
+Gather  (cost=1000.00..25493.17 rows=500 width=215) (actual time=2.820..1499.104 rows=2317 loops=1)
+  Workers Planned: 2
+  Workers Launched: 2
+  ->  Parallel Seq Scan on customer  (cost=0.00..24443.17 rows=208 width=215) (actual time=9.892..1493.918 rows=772 loops=3)
+        Filter: (to_tsvector('english'::regconfig, review) @@ to_tsquery('blue'::text))
+        Rows Removed by Filter: 32561
+Planning Time: 0.067 ms
+Execution Time: 1499.279 ms
+
+
+
+
+Using GIN:
+Bitmap Heap Scan on customer  (cost=16.12..1586.62 rows=500 width=215) (actual time=0.615..2.344 rows=2317 loops=1)
+  Recheck Cond: (to_tsvector('english'::regconfig, review) @@ to_tsquery('blue'::text))
+  Heap Blocks: exact=1637
+  ->  Bitmap Index Scan on gin  (cost=0.00..16.00 rows=500 width=0) (actual time=0.391..0.391 rows=2317 loops=1)
+        Index Cond: (to_tsvector('english'::regconfig, review) @@ to_tsquery('blue'::text))
+Planning Time: 0.254 ms
+Execution Time: 2.490 ms
+
+
+
+
+Using GIST:
+Bitmap Heap Scan on customer  (cost=36.41..1606.90 rows=500 width=215) (actual time=11.022..124.537 rows=2317 loops=1)
+  Recheck Cond: (to_tsvector('english'::regconfig, review) @@ to_tsquery('blue'::text))
+  Heap Blocks: exact=1637
+  ->  Bitmap Index Scan on gist  (cost=0.00..36.28 rows=500 width=0) (actual time=10.677..10.677 rows=2317 loops=1)
+        Index Cond: (to_tsvector('english'::regconfig, review) @@ to_tsquery('blue'::text))
+Planning Time: 0.238 ms
+Execution Time: 124.701 ms
+
+ 
+ 
